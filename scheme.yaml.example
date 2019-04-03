@@ -1,0 +1,29 @@
+users:
+    start: yes
+    limit: 100
+    projection:
+        userId: 1
+        devices: 1
+    query:
+        deletedAt:
+    relations:
+        tokens:
+            - parentKey: userId:string
+              currentKey: userId:string
+groups:
+    relations:
+        lists:
+            - parentKey: listIds:string
+              currentKey: _id:ObjectId
+lists:
+    start: 200
+    relations:
+        listItems:
+            - parentKey: _id:ObjectId
+              currentKey: listId:string
+              limit: 1000
+tokens:
+    relations:
+        groups:
+            - parentKey: groupId:string
+              currentKey: groupId:string
