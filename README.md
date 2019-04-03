@@ -9,19 +9,19 @@ add specific query for each collection.
 
   
 
-####### How to dump mongo instance
+##### How to dump mongo instance
 
 ```bash
 pip3 export.py --host localhost:27017 --db main_db --input scheme.yaml --level 5 --path /home/ubuntu/ 
 ```
 
-####### Installation
+##### Installation
 
 ```git clone https://github.com/manvel-khnkoyan/mongo-partial-exporter.git```  
 ```cd mongo-instance-exporter```  
 ```sudo pip3 install -r requirements.txt```  
 
-####### Configuration file
+##### Configuration file
 
 Configuration file is yaml.
 
@@ -49,13 +49,13 @@ tokens:
 **parentKey** and **currentKey** are support also for objects deep hierarchy:  
 ex.: user.userId:number
 
-####### Types
+##### Types
 
 There 3 types allowed to use:  
 ***number*** for any number, **string** and **ObjectId** for mongodb bson  
 
 
-####### Arrays
+##### Arrays
 
 
 Arrays also widely supported. For these kind of objects:  
@@ -64,7 +64,7 @@ Arrays also widely supported. For these kind of objects:
 can be used ```a.b.c``` key ( or for example with type ```a.b.c:number```)
 
 
-####### Options
+##### Options
 
 All options are not required.  
 
