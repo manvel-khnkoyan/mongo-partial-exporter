@@ -12,7 +12,7 @@ add specific query for each collection.
 ### How to dump mongo instance
 
 ```bash
-pip3 export.py --host localhost:27017 --db main_db --input scheme.yaml --level 5 --path /home/ubuntu/ 
+python3 export.py --host localhost:27017 --db main_db --input scheme.yaml --level 5 --path /home/ubuntu/ 
 ```
 
 ### Installation
