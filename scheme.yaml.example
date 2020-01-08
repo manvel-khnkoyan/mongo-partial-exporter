@@ -10,6 +10,9 @@ users:
         tokens:
             - parentKey: userId:string
               currentKey: userId:string
+        lists:
+            - parentKey: listIds:string
+              currentKey: _id:ObjectId
 groups:
     relations:
         lists:

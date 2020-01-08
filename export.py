@@ -1,4 +1,3 @@
-
 import argparse
 import yaml
 from joiner import Joiner
@@ -6,106 +5,107 @@ from dumper import mongodump
 from pymongo import MongoClient
 
 ap = argparse.ArgumentParser()
-ap.add_argument("-host", "--host", required=True, help="mongodb link (host)")
-ap.add_argument("-d", "--db", required=True, help="mongodb database name")
-ap.add_argument("-i", "--input", required=True, help="input yaml config file")
-ap.add_argument("-p", "--path", required=True, help="path to dump")
-ap.add_argument("-l", "--level", help="deep level limit", default=10)
-
+ap.add_argument("-host", "--host", required=True, help="Mongodb link (host)")
+ap.add_argument("-d", "--db", required=True, help="Mongodb database name")
+ap.add_argument("-i", "--input", required=True, help="Input yaml config file")
+ap.add_argument("-p", "--path", required=True, help="Path to dump")
+ap.add_argument("-l", "--level", help="Database process deep level", default=10)
 args = vars(ap.parse_args())
 
-db=None
-dump={}
-configuration=None
 
-
-def fetch(name, info, data, level):
-    global db,configuration
+def fetch_documents(db, collection, configuration, parent_documents=None):
     optional_query = {}
-    if "query" in info:
-        optional_query = info['query']
+    if "query" in configuration:
+        optional_query = configuration['query']
 
     sort = [("_id", 1)]
-    if "sort" in info:
-        sort = info['sort']
+    if "sort" in configuration:
+        sort = configuration['sort']
 
     limit = 100000
-    if "limit" in info:
-        limit = info['limit']
+    if "limit" in configuration:
+        limit = configuration['limit']
 
     projection = None
-    if name in configuration and "projection" in configuration[name]:
-        projection = configuration[name]["projection"]
+    if "projection" in configuration:
+        projection = configuration["projection"]
 
     required_query = {}
-    if level > 0:
-        joiner = Joiner(info['currentKey'], info['parentKey'], data)
-        required_query = joiner.join()
-        if not required_query:
-            return []
 
-    documents = db[name].find({**optional_query,**required_query},projection).sort(sort).limit(limit)
-    docs = []
-    for document in documents:
-        docs.append(document)
+    if 'currentKey' in configuration and 'parentKey' in configuration:
+        required_query = Joiner(configuration['currentKey'], configuration['parentKey'], parent_documents).join() or {}
 
-    return docs
+    cursor = db[collection].find({**required_query, **optional_query}, projection).sort(sort).limit(limit)
+    documents = []
+    for document in cursor:
+        documents.append(document)
+    return documents
 
 
-def append(name,data):
-    global dump
-    if name not in dump:
-        dump[name] = []
-    for document in data:
-        dump[name].append(document['_id'])
+def append_collections_ids(collections_ids, collection, documents):
+    if collection not in collections_ids:
+        collections_ids[collection] = []
+    for data in documents:
+        collections_ids[collection].append(data['_id'])
 
 
-def set_configuration():
-    global configuration
+def load_configurations():
     with open(args['input']) as input:
-        configuration = yaml.safe_load(input)
+        configurations = yaml.safe_load(input)
+    return configurations
 
 
-def set_db(db_):
-    global db
-    db = db_
+def export_recursively(db, collection, configurations, collections_ids, documents=None, level=0, keys=None):
+    if keys is None:
+        keys = {}
+    configuration = {}
+    if collection in configurations:
+        configuration = configurations[collection]
 
-
-def export_recursively(name, info, data=None, level=0):
-    global configuration
     if level > int(args['level']):
         return
-    if level == 0 and "start" not in info:
-        return
-    if level > 0 and not data:
+    if level == 0 and "start" not in configuration:
         return
 
-    data = fetch(name, info, data, level)
-    append(name,data)
+    # Append current collections
+    documents = fetch_documents(db, collection, {**configuration, **keys}, documents)
+    append_collections_ids(collections_ids, collection, documents)
 
-    if name not in configuration:
+    # Append child collections
+    if collection not in configurations:
         return
-    if "relations" in configuration[name]:
-        for child_name, child_info in configuration[name]['relations'].items():
-            if isinstance(child_info,list):
-                for i in child_info:
-                    export_recursively(child_name, i, data, level + 1)
+    if "relations" in configuration:
+        for child_collection, child_configuration in configuration['relations'].items():
+            if isinstance(child_configuration, list):
+                for child_configuration_i in child_configuration:
+                    export_recursively(db, child_collection, configurations, collections_ids, documents, level + 1,
+                                       child_configuration_i)
             else:
-                export_recursively(child_name, child_info, data, level+1)
+                export_recursively(db, child_collection, configurations, collections_ids, documents, level + 1,
+                               child_configuration)
 
 
-def export():
-    for name, info in configuration.items():
-        export_recursively(name, info)
+def export_queries(db, configurations):
+    collections_ids = {}
+    for collection, configuration in configurations.items():
+        export_recursively(db, collection, configurations, collections_ids)
+    return collections_ids
 
 
 def main():
-    global dump
+    # Database connection
     client = MongoClient(args['host'])
-    set_db(client[args['db']])
-    set_configuration()
-    export()
-    mongodump(args['host'],args['db'],args['path'], dump)
+    db = client[args['db']]
+
+    # Read Yaml Configuration
+    configurations = load_configurations()
+
+    # Exporting Database queries
+    collections_ids = export_queries(db, configurations)
+
+    # Mongodump
+    mongodump(args['host'], args['db'], args['path'], collections_ids)
+
 
 if __name__ == '__main__':
     main()

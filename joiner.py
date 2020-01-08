@@ -1,14 +1,13 @@
-
 import re
 from bson import ObjectId
 
-class Joiner:
 
+class Joiner:
     data = None
     current_key = None
     parent_key = None
 
-    def __init__(self, current_key, parent_key, parent_data):
+    def __init__(self, current_key, parent_key, parent_data=[]):
         self.parent_data = parent_data
         self.current_key = current_key
         self.parent_key = parent_key
@@ -42,7 +41,7 @@ class Joiner:
             if isinstance(res[key], list):
                 for item in res[key]:
                     if isinstance(item, dict) and not ObjectId.is_valid(item):
-                        val += self.get_values(item, key_.split('.',1)[1])
+                        val += self.get_values(item, key_.split('.', 1)[1])
                     else:
                         val.append(item)
                 return val
@@ -52,7 +51,6 @@ class Joiner:
                 return [res[key]]
         return val
 
-
     def join(self):
         values = []
         p_key = self.get_key(self.parent_key)
@@ -60,7 +58,7 @@ class Joiner:
         c_type = self.get_type(self.current_key)
 
         for data in self.parent_data:
-            values += self.get_values(data,p_key)
+            values += self.get_values(data, p_key)
 
         if len(values) == 0:
             return False
